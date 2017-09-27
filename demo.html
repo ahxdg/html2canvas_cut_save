@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+		html,body{
+			margin:0;
+			background: #fff;
+			height: 100%;
+		}
+		.add-group .group-item{
+			margin-bottom: 20px;
+		}
+		.add-group .group-item label{
+			width: 50px;
+			display: inline-block;
+		}
+		.add-group .group-item input,
+		.add-group .group-item textarea,
+		.add-group .group-item select{
+			width: 200px;
+		}
+		.add-content{
+			padding: 10px 0;
+			width: 300px;
+			position: relative;
+		}
+		.delete-add-item{
+			display: none;
+			position: absolute;
+			top: 10px;
+			right: 0;
+			background: rgba(0,0,0,0.5);
+			color: #fff;
+			padding: 5px 12px;
+			text-decoration: none;
+		}
+		.add-content:hover .delete-add-item{
+			display: block;
+		}
+
+		#fix{
+			display: block;
+			position: fixed;
+			top: 0;
+			left: 0;
+			z-index: 9999;
+		}
+		#fix:hover{
+			cursor: crosshair;
+		}
+		#cover{
+			display: block;
+			position: fixed;
+			top: 0;
+			left: 0;
+			z-index: 10000;
+			background: rgba(0,0,0,0.2);
+			border:1px solid #999;
+			box-sizing: border-box;
+		}
+		#control{
+			position: absolute;
+			right: 0;
+			min-width: 100px;
+			background: #98a;
+			padding: 5px;
+		}
+		#control.offset-inner{
+			bottom: 0;
+		}
+		#control.offset-outer{
+			top:100%;
+		}
+		#control a{
+			display: block;
+			text-align: center;
+			width: 50%;
+			box-sizing: border-box;
+			color: #fff;
+			cursor: pointer;
+			text-decoration: none;
+			float: right;
+			font-size: 14px;
+			border-right: 1px solid #fff;
+		}
+		#control a:first-child{
+			border:none;
+		}
+	</style>
+</head>
+<body>
+	<div class="content">
+		<div class="add-group">
+			<div class="group-item">
+				<label for="">题目：</label>
+				<input type="text">
+			</div>
+			<div class="group-item">
+				<label for="">描述：</label>
+				<textarea name="" id="" cols="10" rows="4"></textarea>
+			</div>
+			<div class="group-item">
+				<label for="">选项：</label>
+				<select name="" id="">
+					<option value="1">a</option>
+					<option value="2">b</option>
+				</select>
+			</div>
+			<div class="group-control">
+				<a href="javascript:;" class="add-btn">添加</a>
+			</div>
+		</div>
+	</div>
+	<a id="cut" href="javascript:;">裁剪</a>
+	<script src="./js/html2canvas.min.js"></script>
+	<script>
+		document.querySelector('#cut').addEventListener('click',function() {
+			html2canvas(document.body, {
+			  onrendered: function(canvas) {
+			    canvas.id = 'cvs'
+			    console.log(canvas)
+			    var fix = document.createElement('div');
+			    fix.id = 'fix'
+			    fix.appendChild(canvas);
+			    document.querySelector('body').appendChild(fix);
+			    cut();
+			  }
+			});
+		}, false);
+		function cut () {
+			var cvs = document.querySelector('#cvs');
+			var ctx = cvs.getContext('2d');
+			var start = {}, move = {}, end = {};
+			var cuting = false, cover, offset = {};
+			cvs.onmousedown = function (e) {
+				if (cuting) { return false;}
+				cuting = true;
+				if (cover) { cover.parentNode.removeChild(cover);}
+				start.x = e.clientX;
+				start.y = e.clientY;
+				addCover()
+			}
+			cvs.onmousemove = function (e) {
+				if (!cuting) { return false; }
+				move.x = e.clientX;
+				move.y = e.clientY;
+				drawCover();
+			}
+			cvs.onmouseup = function (e) {
+				cuting = false;
+				end.x = e.clientX;
+				end.y = e.clientY;
+				addControl();
+			}
+			function drawCover () {
+				offset.x = move.x - start.x;
+				offset.y = move.y - start.y;
+				if (offset.x<0) {
+					cover.style.left = start.x+offset.x+3 + 'px';
+				}
+				if (offset.y<0) {
+					cover.style.top = start.y+offset.y+3 + 'px';
+				}
+				cover.style.width = Math.abs(offset.x) + 'px';
+				cover.style.height = Math.abs(offset.y) + 'px';
+			}
+			function addCover () {
+				cover = document.createElement('div');
+				cover.id = 'cover';
+				cover.style.top = start.y + 'px';
+				cover.style.left = start.x + 'px';
+				document.body.appendChild(cover);
+			}
+			function addControl () {
+				var div = document.createElement('div');
+				div.id = 'control';
+				var save_btn = document.createElement('a');
+				var save_txt = document.createTextNode('保存');
+				save_btn.id = 'save';
+				save_btn.appendChild(save_txt);
+				var cancel_btn = document.createElement('a');
+				var cancel_txt = document.createTextNode('取消');
+				cancel_btn.id = 'cancel';
+				cancel_btn.appendChild(cancel_txt);
+				div.appendChild(save_btn);
+				div.appendChild(cancel_btn);
+				if (cvs.height - end.y < 60) {
+					div.className = 'offset-inner';
+				}else{
+					div.className = 'offset-outer';
+				}
+				cover.appendChild(div);
+				save(save_btn);
+				cancel_btn.onclick = removeCanvas;
+			}
+			function save (elem) {
+				var img = new Image();
+				img.src = cvs.toDataURL();
+				var canvas = document.createElement('canvas');
+				canvas.width = Math.abs(offset.x);
+				canvas.height = Math.abs(offset.y);
+				var ctxs = canvas.getContext('2d');
+				setTimeout(function(){
+					var dof = {};
+					dof.x = offset.x<0 ? -start.x-offset.x : -start.x;
+					dof.y = offset.y<0 ? -start.y-offset.y : -start.y;
+					ctxs.drawImage(img,dof.x,dof.y);
+					createImg(elem,canvas.toDataURL());
+				},0)
+			}
+			function removeCanvas () {
+				cvs.parentNode.removeChild(cvs);
+				cover.parentNode.removeChild(cover);
+			}
+			function createImg (elem, data) {
+				var evt = document.createEvent('HTMLEvents');
+				evt.initEvent('click',false,false);
+				elem.download = '截图';
+				elem.href = data;
+				elem.dispatchEvent(evt);
+				elem.onclick = removeCanvas;
+			}
+		}
+	</script>
+</body>
+</html>
